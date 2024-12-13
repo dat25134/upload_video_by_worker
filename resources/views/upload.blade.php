@@ -4,47 +4,39 @@
 <input type="file" id="fileUpload">
 
 <script>
-    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
     const fileInput = document.getElementById('fileUpload');
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks - có thể điều chỉnh kích thước ở đây
 
     fileInput.addEventListener('change', async function(e) {
         const file = e.target.files[0];
-        const chunks = Math.ceil(file.size / CHUNK_SIZE);
+        if (!file) return;
         
-        // Show toast with filename
-        window.ToastUpload.show(file.name);
-        
-        for (let i = 0; i < chunks; i++) {
-            const chunk = file.slice(
-                i * CHUNK_SIZE,
-                Math.min((i + 1) * CHUNK_SIZE, file.size)
-            );
-            
-            const formData = new FormData();
-            formData.append('file', chunk);
-            formData.append('fileName', file.name);
-            formData.append('chunkNumber', i);
-            formData.append('totalChunks', chunks);
-            formData.append('chunk', true);
-
-            try {
-                await fetch('/upload', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
-
-                // Update progress
-                const progress = Math.round(((i + 1) / chunks) * 100);
-                window.ToastUpload.updateProgress(progress);
-            } catch (error) {
-                console.error('Upload failed:', error);
-                alert('Upload failed. Please try again.');
-                window.ToastUpload.hide();
-            }
-        }
+        // Start upload using UploadManager with custom chunk size
+        window.UploadManager.startUpload(file, {
+            chunkSize: CHUNK_SIZE,
+            // Có thể thêm các options khác ở đây
+            maxRetries: 3,
+            timeout: 30000, // 30 seconds
+            // validateFile: (file) => file.size < 1024 * 1024 * 1024, // 1GB limit
+        });
     });
+
+    // Tùy chọn: Thêm các validation
+    function validateFile(file) {
+        const maxSize = 1024 * 1024 * 1024; // 1GB
+        const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+
+        if (file.size > maxSize) {
+            alert('File too large. Maximum size is 1GB');
+            return false;
+        }
+
+        if (!allowedTypes.includes(file.type)) {
+            alert('Invalid file type. Only video files are allowed');
+            return false;
+        }
+
+        return true;
+    }
 </script>
 @endsection 
